@@ -1,0 +1,61 @@
+# Database configuration (sensitive)
+backend/chat/src/main/resources/application-prod.properties
+backend/chat/src/main/resources/application-dev.properties
+
+# Maven build files
+backend/chat/target/
+backend/chat/pom.xml.tag
+backend/chat/pom.xml.releaseBackup
+backend/chat/pom.xml.versionsBackup
+backend/chat/pom.xml.next
+backend/chat/release.properties
+backend/chat/dependency-reduced-pom.xml
+backend/chat/buildNumber.properties
+backend/chat/.mvn/timing.properties
+backend/chat/.mvn/wrapper/maven-wrapper.jar
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Node.js (for frontend)
+frontend/node_modules/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Spring Boot
+backend/chat/.springBeans
+backend/chat/application-*.properties
+!backend/chat/src/main/resources/application.properties
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp

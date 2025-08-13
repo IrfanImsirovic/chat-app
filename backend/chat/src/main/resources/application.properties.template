@@ -1,0 +1,23 @@
+spring.application.name=chat
+
+# WebSocket and STOMP debug logging
+logging.level.org.springframework.web.socket=DEBUG
+logging.level.org.springframework.messaging=DEBUG
+logging.level.com.irfan.chat=DEBUG
+
+# Server configuration
+server.port=8080
+
+# PostgreSQL Database configuration
+# Replace with your actual PostgreSQL credentials
+spring.datasource.url=jdbc:postgresql://localhost:5432/chatapp
+spring.datasource.username=postgres
+spring.datasource.password=YOUR_POSTGRESQL_PASSWORD_HERE
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA/Hibernate configuration
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
