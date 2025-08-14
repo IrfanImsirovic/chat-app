@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application Test Suite</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .test-header {
+            background: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .test-sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .test-section h3 {
+            color: #007bff;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+
+        .test-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .test-button {
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .test-button:hover {
+            background: #0056b3;
+        }
+
+        .test-button.success {
+            background: #28a745;
+        }
+
+        .test-button.danger {
+            background: #dc3545;
+        }
+
+        .test-button.warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .test-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .test-results {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .test-result {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .test-result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .test-result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .test-result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .chat-display {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            background: white;
+            border-left: 4px solid #007bff;
+        }
+
+        .message.system {
+            border-left-color: #6c757d;
+            background: #e9ecef;
+        }
+
+        .message.private {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-connected {
+            background: #28a745;
+        }
+
+        .status-disconnected {
+            background: #dc3545;
+        }
+
+        .status-connecting {
+            background: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>Chat Application Test Suite</h1>
+            <p>Comprehensive testing interface for WebSocket chat functionality</p>
+        </div>
+
+        <div class="test-sections">
+            <div class="test-section">
+                <h3>Connection Tests</h3>
+                <div class="test-controls">
+                    <button class="test-button" onclick="testConnection()">Test WebSocket Connection</button>
+                    <button class="test-button" onclick="testDisconnection()">Test Disconnection</button>
+                    <button class="test-button" onclick="testReconnection()">Test Reconnection</button>
+                    <div>
+                        <span class="status-indicator" id="connectionStatus"></span>
+                        <span id="connectionText">Disconnected</span>
+                    </div>
+                </div>
+                <div class="test-results" id="connectionResults"></div>
+            </div>
+
+            <div class="test-section">
+                <h3>User Management Tests</h3>
+                <div class="test-controls">
+                    <button class="test-button" onclick="testUserCreation()">Test User Creation</button>
+                    <button class="test-button" onclick="testUserJoin()">Test User Join</button>
+                    <button class="test-button" onclick="testUserLeave()">Test User Leave</button>
+                    <button class="test-button" onclick="testOnlineUsers()">Get Online Users</button>
+                    <input type="text" id="testUsername" class="test-input" placeholder="Test username" value="TestUser">
+                </div>
+                <div class="test-results" id="userResults"></div>
+            </div>
+
+            <div class="test-section">
+                <h3>Message Tests</h3>
+                <div class="test-controls">
+                    <button class="test-button" onclick="testGlobalMessage()">Test Global Message</button>
+                    <button class="test-button" onclick="testPrivateMessage()">Test Private Message</button>
+                    <button class="test-button" onclick="testMessageHistory()">Get Message History</button>
+                    <input type="text" id="testMessage" class="test-input" placeholder="Test message" value="Hello from test!">
+                    <input type="text" id="testRecipient" class="test-input" placeholder="Recipient username" value="OtherUser">
+                </div>
+                <div class="test-results" id="messageResults"></div>
+            </div>
+
+            <div class="test-section">
+                <h3>API Tests</h3>
+                <div class="test-controls">
+                    <button class="test-button" onclick="testControllerEndpoint()">Test Controller Endpoint</button>
+                    <button class="test-button" onclick="testUserEndpoint()">Test User Endpoint</button>
+                    <button class="test-button" onclick="testMessagesEndpoint()">Test Messages Endpoint</button>
+                    <button class="test-button" onclick="testPrivateMessagesEndpoint()">Test Private Messages</button>
+                </div>
+                <div class="test-results" id="apiResults"></div>
+            </div>
+        </div>
+
+        <div class="test-section" style="margin: 20px; grid-column: 1 / -1;">
+            <h3>Live Chat Display</h3>
+            <div class="chat-display" id="chatDisplay">
+                <div class="message system">Test interface ready. Start testing to see live messages.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let currentUser = null;
+        let connected = false;
+        let testResults = {};
+
+        function updateConnectionStatus(status, text) {
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            statusIndicator.className = 'status-indicator status-' + status;
+            statusText.textContent = text;
+        }
+
+        function addTestResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(result);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addChatMessage(message) {
+            const container = document.getElementById('chatDisplay');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            if (message.sender === 'System') {
+                messageDiv.className += ' system';
+            } else if (message.content && message.content.includes('Private:')) {
+                messageDiv.className += ' private';
+            }
+            
+            messageDiv.innerHTML = `
+                <strong>${message.sender}:</strong> ${message.content}
+                <br><small>${new Date(message.timestamp).toLocaleTimeString()}</small>
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function connect() {
+            return new Promise((resolve, reject) => {
+                if (stompClient && connected) {
+                    resolve();
+                    return;
+                }
+
+                updateConnectionStatus('connecting', 'Connecting...');
+                
+                const socket = new SockJS('/ws');
+                stompClient = Stomp.over(socket);
+                
+                stompClient.connect({}, function (frame) {
+                    connected = true;
+                    updateConnectionStatus('connected', 'Connected');
+                    
+                    stompClient.subscribe('/topic/global', function (message) {
+                        const msg = JSON.parse(message.body);
+                        addChatMessage(msg);
+                        addTestResult('messageResults', `Received global message: ${msg.sender}: ${msg.content}`, 'success');
+                    });
+                    
+                    stompClient.subscribe('/topic/online-users', function (message) {
+                        const users = JSON.parse(message.body);
+                        addTestResult('userResults', `Online users update: ${users.length} users online`, 'info');
+                    });
+                    
+                    stompClient.subscribe('/user/queue/private', function (message) {
+                        const msg = JSON.parse(message.body);
+                        addChatMessage(msg);
+                        addTestResult('messageResults', `Received private message: ${msg.sender}: ${msg.content}`, 'success');
+                    });
+                    
+                    stompClient.subscribe('/user/queue/notifications', function (message) {
+                        const msg = JSON.parse(message.body);
+                        addChatMessage(msg);
+                        addTestResult('messageResults', `Received notification: ${msg.content}`, 'info');
+                    });
+                    
+                    resolve();
+                }, function (error) {
+                    connected = false;
+                    updateConnectionStatus('disconnected', 'Connection failed');
+                    reject(error);
+                });
+            });
+        }
+
+        async function testConnection() {
+            try {
+                await connect();
+                addTestResult('connectionResults', 'WebSocket connection test: SUCCESS', 'success');
+            } catch (error) {
+                addTestResult('connectionResults', `WebSocket connection test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testDisconnection() {
+            if (stompClient) {
+                stompClient.disconnect();
+                connected = false;
+                updateConnectionStatus('disconnected', 'Disconnected');
+                addTestResult('connectionResults', 'Disconnection test: SUCCESS', 'success');
+            } else {
+                addTestResult('connectionResults', 'Disconnection test: FAILED - No active connection', 'error');
+            }
+        }
+
+        async function testReconnection() {
+            try {
+                await testDisconnection();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await testConnection();
+                addTestResult('connectionResults', 'Reconnection test: SUCCESS', 'success');
+            } catch (error) {
+                addTestResult('connectionResults', `Reconnection test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testUserCreation() {
+            try {
+                await connect();
+                const username = document.getElementById('testUsername').value || 'TestUser';
+                currentUser = username;
+                
+                const response = await fetch('/test-user');
+                const result = await response.text();
+                
+                addTestResult('userResults', `User creation test: ${result}`, 'success');
+            } catch (error) {
+                addTestResult('userResults', `User creation test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testUserJoin() {
+            try {
+                await connect();
+                const username = document.getElementById('testUsername').value || 'TestUser';
+                
+                const joinMessage = {
+                    sender: username,
+                    content: 'Test user joining',
+                    timestamp: new Date()
+                };
+                
+                stompClient.send("/app/chat.addUser", {}, JSON.stringify(joinMessage));
+                addTestResult('userResults', `User join test: Sent join message for ${username}`, 'success');
+            } catch (error) {
+                addTestResult('userResults', `User join test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testUserLeave() {
+            try {
+                await connect();
+                const username = document.getElementById('testUsername').value || 'TestUser';
+                
+                const leaveMessage = {
+                    sender: username,
+                    content: 'Test user leaving',
+                    timestamp: new Date()
+                };
+                
+                stompClient.send("/app/chat.removeUser", {}, JSON.stringify(leaveMessage));
+                addTestResult('userResults', `User leave test: Sent leave message for ${username}`, 'success');
+            } catch (error) {
+                addTestResult('userResults', `User leave test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testOnlineUsers() {
+            try {
+                const response = await fetch('/api/users/online');
+                const users = await response.json();
+                
+                addTestResult('userResults', `Online users: ${users.length} users found`, 'info');
+                users.forEach(user => {
+                    addTestResult('userResults', `  - ${user.username} (${user.online ? 'online' : 'offline'})`, 'info');
+                });
+            } catch (error) {
+                addTestResult('userResults', `Online users test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testGlobalMessage() {
+            try {
+                await connect();
+                const message = document.getElementById('testMessage').value || 'Test global message';
+                const username = document.getElementById('testUsername').value || 'TestUser';
+                
+                const globalMessage = {
+                    content: message,
+                    sender: username,
+                    timestamp: new Date()
+                };
+                
+                stompClient.send("/app/chat.send", {}, JSON.stringify(globalMessage));
+                addTestResult('messageResults', `Global message test: Sent "${message}"`, 'success');
+            } catch (error) {
+                addTestResult('messageResults', `Global message test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testPrivateMessage() {
+            try {
+                await connect();
+                const message = document.getElementById('testMessage').value || 'Test private message';
+                const sender = document.getElementById('testUsername').value || 'TestUser';
+                const recipient = document.getElementById('testRecipient').value || 'OtherUser';
+                
+                const privateMessage = {
+                    content: recipient + ':' + message,
+                    sender: sender,
+                    timestamp: new Date()
+                };
+                
+                stompClient.send("/app/chat.private", {}, JSON.stringify(privateMessage));
+                addTestResult('messageResults', `Private message test: Sent "${message}" to ${recipient}`, 'success');
+            } catch (error) {
+                addTestResult('messageResults', `Private message test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testMessageHistory() {
+            try {
+                const response = await fetch('/api/messages/recent');
+                const messages = await response.json();
+                
+                addTestResult('messageResults', `Message history: ${messages.length} messages found`, 'info');
+                messages.slice(0, 5).forEach(msg => {
+                    addTestResult('messageResults', `  - ${msg.sender}: ${msg.content}`, 'info');
+                });
+            } catch (error) {
+                addTestResult('messageResults', `Message history test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testControllerEndpoint() {
+            try {
+                const response = await fetch('/test');
+                const result = await response.text();
+                
+                addTestResult('apiResults', `Controller endpoint test: ${result}`, 'success');
+            } catch (error) {
+                addTestResult('apiResults', `Controller endpoint test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testUserEndpoint() {
+            try {
+                const response = await fetch('/api/users/online');
+                const users = await response.json();
+                
+                addTestResult('apiResults', `User endpoint test: ${users.length} users returned`, 'success');
+            } catch (error) {
+                addTestResult('apiResults', `User endpoint test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testMessagesEndpoint() {
+            try {
+                const response = await fetch('/api/messages/recent');
+                const messages = await response.json();
+                
+                addTestResult('apiResults', `Messages endpoint test: ${messages.length} messages returned`, 'success');
+            } catch (error) {
+                addTestResult('apiResults', `Messages endpoint test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        async function testPrivateMessagesEndpoint() {
+            try {
+                const user1 = document.getElementById('testUsername').value || 'TestUser';
+                const user2 = document.getElementById('testRecipient').value || 'OtherUser';
+                
+                const response = await fetch(`/api/messages/private/${user1}/${user2}`);
+                const messages = await response.json();
+                
+                addTestResult('apiResults', `Private messages endpoint test: ${messages.length} private messages returned`, 'success');
+            } catch (error) {
+                addTestResult('apiResults', `Private messages endpoint test: FAILED - ${error}`, 'error');
+            }
+        }
+
+        window.onload = function() {
+            updateConnectionStatus('disconnected', 'Disconnected');
+            addTestResult('connectionResults', 'Test interface loaded successfully', 'info');
+        };
+
+        window.onbeforeunload = function() {
+            if (stompClient) {
+                stompClient.disconnect();
+            }
+        };
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "users")
@@ -20,7 +21,7 @@ public class User {
     private String username;
     
     @Column(name = "is_online", nullable = false)
-    private boolean online = true;
+    private boolean online = false;
     
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -29,11 +30,12 @@ public class User {
     private LocalDateTime lastSeen = LocalDateTime.now();
     
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<ChatMessage> messages = new ArrayList<>();
     
     public User(String username) {
         this.username = username;
-        this.online = true;
+        this.online = false;
         this.createdAt = LocalDateTime.now();
         this.lastSeen = LocalDateTime.now();
     }

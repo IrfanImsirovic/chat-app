@@ -20,6 +20,13 @@ public class ChatMessage {
     @Column(nullable = false)
     private String sender;
     
+    @Column(name = "recipient")
+    private String recipient;
+    
+    @Column(name = "message_type", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private MessageType messageType = MessageType.GLOBAL;
+    
     @Column(name = "created_at", nullable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
     
@@ -27,9 +34,22 @@ public class ChatMessage {
     @JoinColumn(name = "user_id")
     private User user;
     
+    public enum MessageType {
+        GLOBAL, PRIVATE, SYSTEM
+    }
+    
     public ChatMessage(String content, String sender) {
         this.content = content;
         this.sender = sender;
         this.timestamp = LocalDateTime.now();
+        this.messageType = MessageType.GLOBAL;
+    }
+    
+    public ChatMessage(String content, String sender, String recipient) {
+        this.content = content;
+        this.sender = sender;
+        this.recipient = recipient;
+        this.timestamp = LocalDateTime.now();
+        this.messageType = MessageType.PRIVATE;
     }
 }
