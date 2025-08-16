@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import com.irfan.chat.repository.MessageRepository;
 
 @Controller
 @CrossOrigin(origins = "*")
@@ -27,17 +29,13 @@ public class ChatController {
     @Autowired
     private UserService userService;
 
-    @GetMapping("/test")
-    @ResponseBody
-    public String test() {
-        return "Chat controller is working!";
-    }
+    @Autowired
+    private MessageRepository messageRepository;
 
-    @GetMapping("/test-user")
+    @GetMapping("/api/messages/private/{user1}/{user2}")
     @ResponseBody
-    public String testUser() {
-        User user = userService.createNewUser();
-        return "Created user: " + user.getUsername() + " (ID: " + user.getId() + ")";
+    public List<ChatMessage> getPrivateMessages(@PathVariable String user1, @PathVariable String user2) {
+        return chatService.getPrivateMessages(user1, user2);
     }
 
     @GetMapping("/api/users/online")
@@ -46,16 +44,10 @@ public class ChatController {
         return userService.getOnlineUsers();
     }
 
-    @GetMapping("/api/messages/recent")
+    @GetMapping("/api/messages/all")
     @ResponseBody
-    public List<ChatMessage> getRecentMessages() {
-        return chatService.getRecentGlobalMessages(50);
-    }
-
-    @GetMapping("/api/messages/private/{user1}/{user2}")
-    @ResponseBody
-    public List<ChatMessage> getPrivateMessages(@PathVariable String user1, @PathVariable String user2) {
-        return chatService.getPrivateMessages(user1, user2);
+    public List<ChatMessage> getAllGlobalMessages() {
+        return chatService.getAllGlobalMessages();
     }
 
     @GetMapping("/api/users/reset-offline")
@@ -63,6 +55,13 @@ public class ChatController {
     public String resetAllUsersOffline() {
         userService.resetAllUsersOffline();
         return "All users reset to offline";
+    }
+
+    @GetMapping("/api/test/websocket/{username}")
+    @ResponseBody
+    public String testWebSocketRouting(@PathVariable String username) {
+        System.out.println("Testing WebSocket routing for user: " + username);
+        return "WebSocket test endpoint called for user: " + username;
     }
 
     @MessageMapping("/chat.send")
@@ -73,57 +72,53 @@ public class ChatController {
 
     @MessageMapping("/chat.private")
     public void sendPrivateMessage(@Payload ChatMessage chatMessage) {
-        System.out.println("Received private message: " + chatMessage.getContent() + " from " + chatMessage.getSender());
+        System.out.println("Received private message via WebSocket: " + chatMessage.getContent() + " from " + chatMessage.getSender() + " to " + chatMessage.getRecipient());
+        
         String recipient = chatMessage.getRecipient();
         ChatMessage privateMessage = new ChatMessage(chatMessage.getContent(), chatMessage.getSender(), recipient);
         chatService.sendPrivateMessage(privateMessage, recipient);
         
         chatService.notifyPrivateChatStarted(chatMessage.getSender(), recipient);
+        
+        System.out.println("Private message processed and sent to service");
     }
 
     @MessageMapping("/chat.addUser")
-    @SendTo("/topic/global")
-    public ChatMessage addUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor) {
+    public void addUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor) {
         System.out.println("User joining: " + chatMessage.getSender());
         
         headerAccessor.getSessionAttributes().put("username", chatMessage.getSender());
         
-        User user = userService.findOrCreateUser(chatMessage.getSender());
+        UserService.UserCreationResult result = userService.findOrCreateUserWithStatus(chatMessage.getSender());
         
-        // Always set user as online when they connect
+        // Only send notification if this is a new user
+        if (result.isNewUser()) {
+            System.out.println("New user created: " + chatMessage.getSender() + ", sending join notification");
+            chatService.notifyUserJoined(chatMessage.getSender());
+        } else {
+            System.out.println("Existing user reconnecting: " + chatMessage.getSender() + ", no notification needed");
+        }
+        
         userService.setUserOnline(chatMessage.getSender(), true);
-        
-        // Send join notification
-        chatService.notifyUserJoined(chatMessage.getSender());
-        
-        // Update online users list
         chatService.sendOnlineUsersUpdate();
-        
-        return chatMessage;
     }
 
     @MessageMapping("/chat.reconnect")
-    @SendTo("/topic/global")
-    public ChatMessage reconnectUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor) {
+    public void reconnectUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor) {
         System.out.println("User reconnecting: " + chatMessage.getSender());
         
         headerAccessor.getSessionAttributes().put("username", chatMessage.getSender());
         
         userService.setUserOnline(chatMessage.getSender(), true);
-        
         chatService.sendOnlineUsersUpdate();
-        
-        return chatMessage;
     }
 
     @MessageMapping("/chat.removeUser")
-    @SendTo("/topic/global")
-    public ChatMessage removeUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor) {
+    public void removeUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor) {
         String username = (String) headerAccessor.getSessionAttributes().get("username");
         if (username != null) {
             userService.setUserOnline(username, false);
-            chatService.notifyUserLeft(username);
+            // No more leave notifications
         }
-        return chatMessage;
     }
 }

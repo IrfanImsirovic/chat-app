@@ -36,7 +36,6 @@ public class WebSocketEventListener {
         if (username != null) {
             userService.setUserOnline(username, false);
             userService.updateUserLastSeen(username);
-            chatService.notifyUserLeft(username);
             System.out.println("User disconnected: " + username + " (Session: " + sessionId + ") - set offline");
         } else {
             System.out.println("User disconnected (Session: " + sessionId + ") - no username found");

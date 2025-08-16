@@ -30,6 +30,7 @@ public class UserHandshakeHandler extends DefaultHandshakeHandler {
         if (username == null || username.isBlank()) {
             username = "anon-" + java.util.UUID.randomUUID();
         }
+        
         return new SimplePrincipal(username);
     }
 }

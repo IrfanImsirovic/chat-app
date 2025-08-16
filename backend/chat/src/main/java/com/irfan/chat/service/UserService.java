@@ -41,14 +41,34 @@ public class UserService {
         return adjective + noun + number;
     }
 
+    public static class UserCreationResult {
+        private final User user;
+        private final boolean isNewUser;
+        
+        public UserCreationResult(User user, boolean isNewUser) {
+            this.user = user;
+            this.isNewUser = isNewUser;
+        }
+        
+        public User getUser() { return user; }
+        public boolean isNewUser() { return isNewUser; }
+    }
+
+    public UserCreationResult findOrCreateUserWithStatus(String username) {
+        Optional<User> existingUser = userRepository.findByUsername(username);
+        if (existingUser.isPresent()) {
+            return new UserCreationResult(existingUser.get(), false);
+        } else {
+            User newUser = new User(username);
+            newUser.setOnline(false);
+            newUser.setLastSeen(LocalDateTime.now());
+            User savedUser = userRepository.save(newUser);
+            return new UserCreationResult(savedUser, true);
+        }
+    }
+
     public User findOrCreateUser(String username) {
-        return userRepository.findByUsername(username)
-                .orElseGet(() -> {
-                    User newUser = new User(username);
-                    newUser.setOnline(false);
-                    newUser.setLastSeen(LocalDateTime.now());
-                    return userRepository.save(newUser);
-                });
+        return findOrCreateUserWithStatus(username).getUser();
     }
 
     public List<User> getOnlineUsers() {
