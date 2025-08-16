@@ -19,7 +19,7 @@ public class ChatApplication {
 
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        // Reset all users to offline when app starts
+        
         userService.resetAllUsersOffline();
     }
 }

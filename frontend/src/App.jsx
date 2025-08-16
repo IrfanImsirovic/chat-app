@@ -8,8 +8,8 @@ import ChatLayout from './components/ChatLayout'
 
 const API_BASE = 'http://localhost:8080'
 
-// Direct Chat Route Wrapper
-function DirectChatWrapper({ username, connected, connecting, loading, onlineUsers, globalMessages, privateMessages, message, setMessage, onSendGlobal, onSendPrivate, onRetryMessages, onOpenDM, onTestWebSocket, onLogout }) {
+
+function DirectChatWrapper({ username, connected, connecting, loading, onlineUsers, globalMessages, privateMessages, message, setMessage, onSendGlobal, onSendPrivate, onRetryMessages, onOpenDM, onTestWebSocket }) {
   const { dmUsername } = useParams()
   const navigate = useNavigate()
   
@@ -32,12 +32,12 @@ function DirectChatWrapper({ username, connected, connecting, loading, onlineUse
       currentRoute="dm"
       dmUsername={dmUsername}
       onBackToGeneral={() => navigate('/general')}
-      onLogout={onLogout}
+
     />
   )
 }
 
-// Main Chat App Component
+
 function ChatApp() {
   const [globalMessages, setGlobalMessages] = useState([])
   const [privateMessages, setPrivateMessages] = useState({})
@@ -58,30 +58,23 @@ function ChatApp() {
     return `${adj}${noun}${num}`
   }
   
-  // Use localStorage to persist username
+  
   const [username, setUsername] = useState(() => {
     const saved = localStorage.getItem('chat-username')
     return saved || generateRandomName()
   })
   
-  // Save username to localStorage whenever it changes
+  
   useEffect(() => {
     if (username) {
       localStorage.setItem('chat-username', username)
     }
   }, [username])
   
-  // Logout function
-  const handleLogout = () => {
-    setUsername('')
-    localStorage.removeItem('chat-username')
-    // Disconnect WebSocket
-    if (clientRef.current?.active) {
-      clientRef.current.deactivate()
-    }
-  }
   
-  // Load messages function with retry logic
+
+  
+  
   const loadGlobalMessages = async (retryCount = 0) => {
     try {
       setLoading(true)
@@ -89,7 +82,7 @@ function ChatApp() {
       const response = await axios.get(`${API_BASE}/api/messages/all`)
       console.log(`Loaded ${response.data.length} global messages`)
       
-      // Debug: Log message types to see if system messages are included
+      
       const messageTypes = response.data.map(msg => ({
         sender: msg.sender,
         type: msg.messageType,
@@ -102,7 +95,7 @@ function ChatApp() {
       console.error('Failed to load global messages:', err)
       setError('Failed to load messages. Please refresh the page.')
       
-      // Retry logic for better reliability
+      
       if (retryCount < 3) {
         setTimeout(() => loadGlobalMessages(retryCount + 1), 1000 * (retryCount + 1))
       }
@@ -111,17 +104,18 @@ function ChatApp() {
     }
   }
 
-  // Load online users function
+  
   const loadOnlineUsers = async () => {
     try {
       const response = await axios.get(`${API_BASE}/api/users/online`)
+      console.log('API response for online users:', response.data)
       setOnlineUsers(response.data)
     } catch (err) {
       console.error('Failed to load online users:', err)
     }
   }
 
-  // Load private messages for a specific user
+  
   const loadPrivateMessages = async (otherUser) => {
     try {
       const { data } = await axios.get(`${API_BASE}/api/messages/private/${encodeURIComponent(username)}/${encodeURIComponent(otherUser)}`)
@@ -133,10 +127,10 @@ function ChatApp() {
     }
   }
 
-  // Load private messages when username changes or when needed
+  
   useEffect(() => {
     if (username) {
-      // Load any existing private messages from localStorage
+      
       const savedPrivateMessages = localStorage.getItem(`chat-private-${username}`)
       if (savedPrivateMessages) {
         try {
@@ -149,7 +143,7 @@ function ChatApp() {
     }
   }, [username])
 
-  // Save private messages to localStorage whenever they change
+  
   useEffect(() => {
     if (username && Object.keys(privateMessages).length > 0) {
       localStorage.setItem(`chat-private-${username}`, JSON.stringify(privateMessages))
@@ -160,6 +154,14 @@ function ChatApp() {
     if (!username) return
     
     setConnecting(true)
+    
+    // Set up periodic refresh of online users every 30 seconds
+    // This ensures the sidebar stays up-to-date even if WebSocket updates are missed
+    const onlineUsersInterval = setInterval(() => {
+      if (connected) {
+        loadOnlineUsers()
+      }
+    }, 30000)
     const client = new Client({
       webSocketFactory: () => new SockJS(`${API_BASE}/ws?username=${encodeURIComponent(username)}`),
       reconnectDelay: 1000,
@@ -179,13 +181,13 @@ function ChatApp() {
         setError(null)
         console.log('WebSocket connected successfully for user:', username)
         
-        // Set up message subscriptions
+        
         client.subscribe('/topic/global', (frame) => {
           const msg = JSON.parse(frame.body)
           console.log('Received global message via WebSocket:', msg)
           console.log('Message sender:', msg.sender, 'Type:', msg.messageType, 'Content:', msg.content)
           
-          // Check if this is a system message
+          
           if (msg.sender === 'System') {
             console.log('System message received:', msg.content)
           }
@@ -195,15 +197,16 @@ function ChatApp() {
         
         client.subscribe('/topic/online-users', (frame) => {
           const users = JSON.parse(frame.body)
-          console.log('Received online users update:', users)
+          console.log('Received online users update via WebSocket:', users)
+          console.log('Setting onlineUsers state to:', users)
           setOnlineUsers(users)
         })
         
-        // Subscribe to private messages
+        
         client.subscribe('/user/queue/private', (frame) => {
           try {
             const msg = JSON.parse(frame.body)
-            console.log('✅ Received private message via /user/queue/private:', msg)
+            console.log(' Received private message via /user/queue/private:', msg)
             console.log('Message details:', {
               sender: msg.sender,
               recipient: msg.recipient,
@@ -212,14 +215,14 @@ function ChatApp() {
               timestamp: msg.timestamp
             })
             
-            // Only process if this message is for the current user
+            
             if (msg.recipient === username || msg.sender === username) {
               const other = msg.sender === username ? msg.recipient : msg.sender
               if (other) {
-                console.log('✅ Adding private message for conversation with:', other)
+                console.log(' Adding private message for conversation with:', other)
                 setPrivateMessages((prev) => {
                   const currentMessages = prev[other] || []
-                  // Check if message already exists to avoid duplicates
+                  
                   const messageExists = currentMessages.some(existing => 
                     existing.content === msg.content && 
                     existing.sender === msg.sender && 
@@ -227,7 +230,7 @@ function ChatApp() {
                   )
                   
                   if (messageExists) {
-                    console.log('⚠️ Message already exists, skipping duplicate')
+                    console.log(' Message already exists, skipping duplicate')
                     return prev
                   }
                   
@@ -235,37 +238,37 @@ function ChatApp() {
                     ...prev,
                     [other]: [...currentMessages, msg]
                   }
-                  console.log('✅ Updated private messages state:', updated)
+                  console.log(' Updated private messages state:', updated)
                   return updated
                 })
               }
             } else {
-              console.log('⚠️ Message not for current user:', {
+              console.log(' Message not for current user:', {
                 messageRecipient: msg.recipient,
                 messageSender: msg.sender,
                 currentUser: username
               })
             }
           } catch (error) {
-            console.error('❌ Error processing private message:', error)
+            console.error(' Error processing private message:', error)
             console.error('Raw frame body:', frame.body)
           }
         })
         
-        // Additional subscription for private messages (fallback)
+        
         client.subscribe('/topic/private', (frame) => {
           try {
             const msg = JSON.parse(frame.body)
-            console.log('✅ Received private message via /topic/private:', msg)
+            console.log(' Received private message via /topic/private:', msg)
             
-            // Only process if this message is for the current user
+            
             if (msg.recipient === username || msg.sender === username) {
               const other = msg.sender === username ? msg.recipient : msg.sender
               if (other) {
-                console.log('✅ Adding private message via fallback subscription for:', other)
+                console.log(' Adding private message via fallback subscription for:', other)
                 setPrivateMessages((prev) => {
                   const currentMessages = prev[other] || []
-                  // Check if message already exists to avoid duplicates
+                  
                   const messageExists = currentMessages.some(existing => 
                     existing.content === msg.content && 
                     existing.sender === msg.sender && 
@@ -273,7 +276,7 @@ function ChatApp() {
                   )
                   
                   if (messageExists) {
-                    console.log('⚠️ Message already exists in fallback, skipping duplicate')
+                    console.log(' Message already exists in fallback, skipping duplicate')
                     return prev
                   }
                   
@@ -285,33 +288,29 @@ function ChatApp() {
               }
             }
           } catch (error) {
-            console.error('❌ Error processing fallback private message:', error)
+            console.error(' Error processing fallback private message:', error)
           }
         })
         
-        // Join the chat
+        
         client.publish({ destination: '/app/chat.addUser', body: JSON.stringify({ sender: username, content: `${username} joined` }) })
         
-        // Load initial data after connection
+        
         loadGlobalMessages()
         loadOnlineUsers()
         
-        // If there's an active DM from localStorage, load its messages
-        // This logic is now handled by React Router, so we don't need to manage activeDM here directly.
-        // The ChatLayout component will handle the active DM state.
         
-        // Test WebSocket private messaging
         console.log('Testing WebSocket private messaging setup...')
         console.log('Subscribed to /user/queue/private for user:', username)
         console.log('Subscribed to /topic/private as fallback')
         
-        // Test WebSocket connection for private messaging
+        
         setTimeout(() => {
           if (clientRef.current?.active) {
-            console.log('✅ WebSocket is active and ready for private messaging')
+            console.log(' WebSocket is active and ready for private messaging')
             console.log('Current subscriptions:', clientRef.current.subscriptions)
           } else {
-            console.error('❌ WebSocket is not active!')
+            console.error(' WebSocket is not active!')
           }
         }, 1000)
       },
@@ -319,6 +318,12 @@ function ChatApp() {
         setConnected(false)
         setConnecting(false)
         setError('Connection lost. Attempting to reconnect...')
+        
+        // Refresh online users when disconnection happens
+        // This ensures the sidebar updates when users go offline
+        setTimeout(() => {
+          loadOnlineUsers()
+        }, 1000) // Small delay to ensure backend has processed the disconnect
       },
     })
     clientRef.current = client
@@ -326,6 +331,7 @@ function ChatApp() {
     
     return () => {
       if (clientRef.current?.active) clientRef.current.deactivate()
+      clearInterval(onlineUsersInterval)
     }
   }, [username])
 
@@ -346,37 +352,37 @@ function ChatApp() {
       messageType: 'PRIVATE'
     }
     
-    console.log('🚀 Sending private message:', messageData)
+    console.log(' Sending private message:', messageData)
     console.log('WebSocket status:', {
       clientExists: !!clientRef.current,
       isActive: clientRef.current?.active,
       subscriptions: clientRef.current?.subscriptions
     })
     
-    // Add message to local state immediately for instant display
+    
     setPrivateMessages((prev) => {
       const currentMessages = prev[recipient] || []
       const updated = {
         ...prev,
         [recipient]: [...currentMessages, messageData]
       }
-      console.log('✅ Updated local private messages:', updated)
+      console.log(' Updated local private messages:', updated)
       return updated
     })
     
-    // Send via WebSocket
+    
     try {
       if (clientRef.current?.active) {
         clientRef.current.publish({ 
           destination: '/app/chat.private', 
           body: JSON.stringify(messageData) 
         })
-        console.log('✅ Private message sent via WebSocket to:', recipient)
+        console.log(' Private message sent via WebSocket to:', recipient)
       } else {
-        console.error('❌ WebSocket not active, cannot send message')
+        console.error(' WebSocket not active, cannot send message')
       }
     } catch (error) {
-      console.error('❌ Failed to send private message via WebSocket:', error)
+      console.error(' Failed to send private message via WebSocket:', error)
     }
     
     setMessage('')
@@ -384,18 +390,18 @@ function ChatApp() {
 
   const openDM = async (other) => {
     try {
-      console.log(`🔄 Opening DM with ${other}`)
+      console.log(` Opening DM with ${other}`)
       const { data } = await axios.get(`${API_BASE}/api/messages/private/${encodeURIComponent(username)}/${encodeURIComponent(other)}`)
-      console.log(`✅ Loaded ${data.length} private messages for ${other}:`, data)
+      console.log(` Loaded ${data.length} private messages for ${other}:`, data)
       
-      // Update private messages state
+      
       setPrivateMessages((prev) => {
         const updated = { ...prev, [other]: data }
-        console.log('✅ Updated private messages state:', updated)
+        console.log(' Updated private messages state:', updated)
         return updated
       })
     } catch (err) {
-      console.error('❌ Failed to load private messages:', err)
+      console.error(' Failed to load private messages:', err)
       setPrivateMessages((prev) => ({ ...prev, [other]: [] }))
     }
   }
@@ -407,7 +413,7 @@ function ChatApp() {
     }
   }
 
-  // Test WebSocket private messaging
+  
   const testWebSocketPrivate = (recipient) => {
     if (!recipient || !clientRef.current?.active) {
       console.error('Cannot test: No recipient or WebSocket not connected')
@@ -429,33 +435,19 @@ function ChatApp() {
         destination: '/app/chat.private',
         body: JSON.stringify(testMessage)
       })
-      console.log('✅ Test message sent via WebSocket')
+      console.log(' Test message sent via WebSocket')
     } catch (error) {
-      console.error('❌ Failed to send test message:', error)
+      console.error(' Failed to send test message:', error)
     }
   }
 
+  // Debug: Log current state
+  console.log('ChatApp render - onlineUsers:', onlineUsers, 'username:', username, 'connected:', connected)
+  
   return (
     <Router>
       <div className="app">
-        {!username ? (
-          <div className="login-screen">
-            <div className="login-card">
-              <h1>Welcome to ChatApp</h1>
-              <p>Enter your username to start chatting</p>
-              <div className="username-input">
-                <input
-                  type="text"
-                  placeholder="Enter username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && setUsername(e.target.value)}
-                />
-                <button onClick={() => setUsername(username)}>Start Chatting</button>
-              </div>
-            </div>
-          </div>
-        ) : (
+
           <>
             {error && (
               <div className="error-banner">
@@ -485,7 +477,6 @@ function ChatApp() {
                     onOpenDM={openDM}
                     onTestWebSocket={testWebSocketPrivate}
                     currentRoute="general"
-                    onLogout={handleLogout}
                   />
                 } 
               />
@@ -507,19 +498,17 @@ function ChatApp() {
                     onRetryMessages={loadGlobalMessages}
                     onOpenDM={openDM}
                     onTestWebSocket={testWebSocketPrivate}
-                    onLogout={handleLogout}
                   />
                 } 
               />
             </Routes>
-          </>
-        )}
-      </div>
-    </Router>
+                      </>
+        </div>
+      </Router>
   )
 }
 
-// Main App Component
+
 function App() {
   return (
     <ChatApp />

@@ -91,7 +91,7 @@ public class ChatController {
         
         UserService.UserCreationResult result = userService.findOrCreateUserWithStatus(chatMessage.getSender());
         
-        // Only send notification if this is a new user
+        
         if (result.isNewUser()) {
             System.out.println("New user created: " + chatMessage.getSender() + ", sending join notification");
             chatService.notifyUserJoined(chatMessage.getSender());
@@ -118,7 +118,7 @@ public class ChatController {
         String username = (String) headerAccessor.getSessionAttributes().get("username");
         if (username != null) {
             userService.setUserOnline(username, false);
-            // No more leave notifications
+            
         }
     }
 }

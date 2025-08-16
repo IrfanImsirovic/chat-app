@@ -1,14 +1,24 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 
 function DirectChat({ peer, messages, currentUser, message, setMessage, onSendPrivate }) {
+  const messagesEndRef = useRef(null)
+  
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+  
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
   const formatTime = (timestamp) => {
     if (!timestamp) return ''
     const date = new Date(timestamp)
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
-  // Debug: Log messages prop changes
-  console.log(`🔄 DirectChat render for ${peer}:`, {
+  
+  console.log(`DirectChat render for ${peer}:`, {
     messagesCount: messages?.length || 0,
     messages: messages,
     currentUser: currentUser
@@ -31,8 +41,8 @@ function DirectChat({ peer, messages, currentUser, message, setMessage, onSendPr
             </div>
             
             {messages.map((msg, idx) => {
-              // Debug: Log each message being rendered
-              console.log(`📝 Rendering private message ${idx}:`, {
+              
+              console.log(` Rendering private message ${idx}:`, {
                 sender: msg.sender,
                 type: msg.messageType,
                 content: msg.content?.substring(0, 30) + '...',
@@ -63,6 +73,9 @@ function DirectChat({ peer, messages, currentUser, message, setMessage, onSendPr
                 </div>
               )
             })}
+            
+            {/* Scroll anchor for auto-scroll */}
+            <div ref={messagesEndRef} />
           </>
         )}
       </div>

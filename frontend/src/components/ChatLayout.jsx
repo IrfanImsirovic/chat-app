@@ -21,12 +21,19 @@ function ChatLayout({
   onTestWebSocket,
   currentRoute,
   dmUsername,
-  onBackToGeneral,
-  onLogout
+  onBackToGeneral
 }) {
   const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   
-  // Load private messages from API when DM route changes
+  // Close sidebar when clicking outside on mobile
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setSidebarOpen(false)
+    }
+  }
+  
+  
   useEffect(() => {
     if (dmUsername && username) {
       const loadMessages = async () => {
@@ -36,7 +43,7 @@ function ChatLayout({
           if (response.ok) {
             const data = await response.json()
             console.log(`✅ Loaded ${data.length} private messages for ${dmUsername}:`, data)
-            // Update the parent state instead of local state
+            
             onOpenDM(dmUsername)
           } else {
             console.error(`Failed to load private messages: ${response.status} ${response.statusText}`)
@@ -50,10 +57,10 @@ function ChatLayout({
     }
   }, [dmUsername, username, onOpenDM])
 
-  // Debug: Monitor privateMessages changes
+  
   useEffect(() => {
     if (dmUsername) {
-      console.log(`🔄 ChatLayout privateMessages updated for ${dmUsername}:`, {
+      console.log(`ChatLayout privateMessages updated for ${dmUsername}:`, {
         messagesCount: privateMessages[dmUsername]?.length || 0,
         messages: privateMessages[dmUsername]
       })
@@ -76,9 +83,20 @@ function ChatLayout({
         activeDM={dmUsername} 
         onSelectUser={handleOpenDM} 
         loading={loading}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
       <main className="chat-main">
         <div className="chat-header">
+          <button 
+            className="sidebar-toggle"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label="Toggle sidebar"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 12h18M3 6h18M3 18h18"/>
+            </svg>
+          </button>
           <div className="chat-header-content">
             {currentRoute === 'general' ? (
               <>
@@ -109,14 +127,7 @@ function ChatLayout({
           <div className="connection-status">
             <div className={`status-indicator ${connected ? 'online' : 'offline'}`}></div>
             <span>{connecting ? 'Connecting...' : (connected ? 'Connected' : 'Disconnected')}</span>
-            <button 
-              onClick={onLogout}
-              className="back-button"
-              style={{ marginLeft: '1rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-              title="Logout"
-            >
-              🚪 Logout
-            </button>
+
           </div>
         </div>
         

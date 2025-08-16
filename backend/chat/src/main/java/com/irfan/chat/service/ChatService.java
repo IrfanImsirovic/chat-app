@@ -24,7 +24,7 @@ public class ChatService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    // Verify message persistence on service initialization
+    
     @PostConstruct
     public void initialize() {
         verifyMessagePersistence();
@@ -50,11 +50,11 @@ public class ChatService {
         messageRepository.save(chatMessage);
         userService.updateUserLastSeen(chatMessage.getSender());
         
-        // Log for debugging
+        
         System.out.println("Sending private message from " + chatMessage.getSender() + " to " + recipientUsername);
         System.out.println("Message content: " + chatMessage.getContent());
         
-        // Send to both users' private message queues
+        
         messagingTemplate.convertAndSendToUser(recipientUsername, "/queue/private", chatMessage);
         messagingTemplate.convertAndSendToUser(chatMessage.getSender(), "/queue/private", chatMessage);
         
@@ -68,10 +68,10 @@ public class ChatService {
         notification.setMessageType(ChatMessage.MessageType.SYSTEM);
         notification.setTimestamp(LocalDateTime.now());
         
-        // Save the notification to database so it appears in chat history
+        
         messageRepository.save(notification);
         
-        // Send to global chat
+        
         messagingTemplate.convertAndSend("/topic/global", notification);
         sendOnlineUsersUpdate();
         
@@ -79,7 +79,7 @@ public class ChatService {
     }
 
     public void notifyPrivateChatStarted(String sender, String recipient) {
-        // Create notification for sender
+        
         ChatMessage senderNotification = new ChatMessage();
         senderNotification.setContent("Private chat started with " + recipient);
         senderNotification.setSender("System");
@@ -87,7 +87,7 @@ public class ChatService {
         senderNotification.setMessageType(ChatMessage.MessageType.PRIVATE);
         senderNotification.setTimestamp(LocalDateTime.now());
         
-        // Create notification for recipient
+        
         ChatMessage recipientNotification = new ChatMessage();
         recipientNotification.setContent(sender + " started a private chat with you");
         recipientNotification.setSender("System");
@@ -95,11 +95,11 @@ public class ChatService {
         recipientNotification.setMessageType(ChatMessage.MessageType.PRIVATE);
         recipientNotification.setTimestamp(LocalDateTime.now());
         
-        // Send notifications to private message queues
+        
         messagingTemplate.convertAndSendToUser(sender, "/queue/private", senderNotification);
         messagingTemplate.convertAndSendToUser(recipient, "/queue/private", recipientNotification);
         
-        // Save notifications to database
+        
         messageRepository.save(senderNotification);
         messageRepository.save(recipientNotification);
     }
@@ -111,43 +111,43 @@ public class ChatService {
 
     public List<ChatMessage> getAllGlobalMessages() {
         try {
-            // Get ALL global and system messages for complete chat history
+            
             List<ChatMessage> globalMessages = messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.GLOBAL);
             List<ChatMessage> systemMessages = messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.SYSTEM);
             
-            // Combine and sort by timestamp
+            
             List<ChatMessage> allMessages = new ArrayList<>();
             allMessages.addAll(globalMessages);
             allMessages.addAll(systemMessages);
             
-            // Sort by timestamp
+            
             allMessages.sort((a, b) -> a.getTimestamp().compareTo(b.getTimestamp()));
             
-            // Log for debugging (can be removed in production)
+            
             System.out.println("Retrieved " + allMessages.size() + " total messages (global: " + globalMessages.size() + ", system: " + systemMessages.size() + ")");
             
             return allMessages;
         } catch (Exception e) {
             System.err.println("Error retrieving global messages: " + e.getMessage());
             e.printStackTrace();
-            return new ArrayList<>(); // Return empty list on error
+            return new ArrayList<>(); 
         }
     }
 
     public List<ChatMessage> getRecentGlobalMessages(int limit) {
         try {
-            // Get recent global and system messages
+            
             List<ChatMessage> globalMessages = messageRepository
                     .findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.GLOBAL, PageRequest.of(0, limit));
             List<ChatMessage> systemMessages = messageRepository
                     .findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.SYSTEM, PageRequest.of(0, limit));
             
-            // Combine and sort by timestamp
+            
             List<ChatMessage> allMessages = new ArrayList<>();
             allMessages.addAll(globalMessages);
             allMessages.addAll(systemMessages);
             
-            // Sort by timestamp and limit to requested size
+            
             allMessages.sort((a, b) -> a.getTimestamp().compareTo(b.getTimestamp()));
             if (allMessages.size() > limit) {
                 allMessages = allMessages.subList(allMessages.size() - limit, allMessages.size());
@@ -157,7 +157,7 @@ public class ChatService {
         } catch (Exception e) {
             System.err.println("Error retrieving recent global messages: " + e.getMessage());
             e.printStackTrace();
-            return new ArrayList<>(); // Return empty list on error
+            return new ArrayList<>(); 
         }
     }
 
@@ -167,22 +167,18 @@ public class ChatService {
         } catch (Exception e) {
             System.err.println("Error retrieving private messages: " + e.getMessage());
             e.printStackTrace();
-            return new ArrayList<>(); // Return empty list on error
+            return new ArrayList<>(); 
         }
     }
 
-    /**
-     * Verify that all global messages are properly persisted and retrievable
-     * This ensures the requirement: "All users (including new ones) should be able to view old messages 
-     * in the global channel, even with users who are no longer active"
-     */
+   
     public boolean verifyMessagePersistence() {
         try {
             List<ChatMessage> globalMessages = messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.GLOBAL);
             List<ChatMessage> systemMessages = messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.SYSTEM);
             List<User> onlineUsers = userService.getOnlineUsers();
             
-            // Check if we have messages from users who are not currently online
+            
             boolean hasMessagesFromInactiveUsers = globalMessages.stream()
                 .anyMatch(message -> !message.getSender().equals("System") && 
                     onlineUsers.stream().noneMatch(user -> user.getUsername().equals(message.getSender())));

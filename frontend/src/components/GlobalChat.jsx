@@ -1,6 +1,16 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 
 function GlobalChat({ messages, currentUser, loading, onRetry }) {
+  const messagesEndRef = useRef(null)
+  
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+  
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
   const formatTime = (timestamp) => {
     if (!timestamp) return ''
     const date = new Date(timestamp)
@@ -42,7 +52,7 @@ function GlobalChat({ messages, currentUser, loading, onRetry }) {
             </div>
             
             {messages.map((message, index) => {
-              // Debug: Log each message being rendered
+              
               console.log(`Rendering message ${index}:`, {
                 sender: message.sender,
                 type: message.messageType,
@@ -73,6 +83,9 @@ function GlobalChat({ messages, currentUser, loading, onRetry }) {
                 </div>
               )
             })}
+            
+            {/* Scroll anchor for auto-scroll */}
+            <div ref={messagesEndRef} />
           </>
         )}
       </div>
