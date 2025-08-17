@@ -18,9 +18,17 @@ public interface MessageRepository extends JpaRepository<ChatMessage, Long> {
     @Query("SELECT m FROM ChatMessage m WHERE m.messageType = 'PRIVATE' AND ((m.sender = :user1 AND m.recipient = :user2) OR (m.sender = :user2 AND m.recipient = :user1)) ORDER BY m.timestamp ASC")
     List<ChatMessage> findPrivateMessages(@Param("user1") String user1, @Param("user2") String user2);
     
+    @Query("SELECT m FROM ChatMessage m WHERE m.privateChat.id = :chatId ORDER BY m.timestamp ASC")
+    List<ChatMessage> findMessagesByChatId(@Param("chatId") Long chatId);
+    
+    @Query("SELECT m FROM ChatMessage m WHERE m.messageType = 'PRIVATE' AND m.privateChat.id = :chatId ORDER BY m.timestamp DESC")
+    List<ChatMessage> findLatestPrivateMessagesByChatId(@Param("chatId") Long chatId, Pageable pageable);
+    
     @Query("SELECT m FROM ChatMessage m WHERE m.sender = :sender ORDER BY m.timestamp DESC")
     List<ChatMessage> findBySender(@Param("sender") String sender);
     
     @Query("SELECT m FROM ChatMessage m ORDER BY m.timestamp ASC")
     List<ChatMessage> findAllOrderByTimestamp();
+    
+
 }

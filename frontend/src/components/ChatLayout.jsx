@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import GlobalChat from './GlobalChat'
 import DirectChat from './DirectChat'
+import NotificationSystem from './NotificationSystem'
 
 function ChatLayout({
   username,
@@ -18,7 +19,6 @@ function ChatLayout({
   onSendPrivate,
   onRetryMessages,
   onOpenDM,
-  onTestWebSocket,
   currentRoute,
   dmUsername,
   onBackToGeneral
@@ -26,7 +26,7 @@ function ChatLayout({
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   
-  // Close sidebar when clicking outside on mobile
+  
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {
       setSidebarOpen(false)
@@ -38,18 +38,13 @@ function ChatLayout({
     if (dmUsername && username) {
       const loadMessages = async () => {
         try {
-          console.log(`🔄 Loading private messages for DM with ${dmUsername}`)
-          const response = await fetch(`http://localhost:8080/api/messages/private/${encodeURIComponent(username)}/${encodeURIComponent(dmUsername)}`)
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/messages/private/${encodeURIComponent(username)}/${encodeURIComponent(dmUsername)}`)
           if (response.ok) {
             const data = await response.json()
-            console.log(`✅ Loaded ${data.length} private messages for ${dmUsername}:`, data)
-            
             onOpenDM(dmUsername)
-          } else {
-            console.error(`Failed to load private messages: ${response.status} ${response.statusText}`)
           }
         } catch (error) {
-          console.error('Failed to load private messages:', error)
+          
         }
       }
       
@@ -58,14 +53,7 @@ function ChatLayout({
   }, [dmUsername, username, onOpenDM])
 
   
-  useEffect(() => {
-    if (dmUsername) {
-      console.log(`ChatLayout privateMessages updated for ${dmUsername}:`, {
-        messagesCount: privateMessages[dmUsername]?.length || 0,
-        messages: privateMessages[dmUsername]
-      })
-    }
-  }, [privateMessages, dmUsername])
+
   
   const handleOpenDM = (otherUser) => {
     navigate(`/dm/${otherUser}`)
@@ -124,10 +112,12 @@ function ChatLayout({
               </>
             )}
           </div>
-          <div className="connection-status">
-            <div className={`status-indicator ${connected ? 'online' : 'offline'}`}></div>
-            <span>{connecting ? 'Connecting...' : (connected ? 'Connected' : 'Disconnected')}</span>
-
+          <div className="header-actions">
+            <NotificationSystem username={username} connected={connected} />
+            <div className="connection-status">
+              <div className={`status-indicator ${connected ? 'online' : 'offline'}`}></div>
+              <span>{connecting ? 'Connecting...' : (connected ? 'Connected' : 'Disconnected')}</span>
+            </div>
           </div>
         </div>
         
@@ -146,7 +136,7 @@ function ChatLayout({
               currentUser={username}
               message={message}
               setMessage={setMessage}
-              onSendPrivate={() => onSendPrivate && onSendPrivate(dmUsername)}
+              onSendPrivate={() => onSendPrivate(dmUsername)}
             />
           )}
         </div>

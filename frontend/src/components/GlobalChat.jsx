@@ -1,21 +1,8 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
+import { MessageItem, useAutoScroll } from './MessageUtils'
 
 function GlobalChat({ messages, currentUser, loading, onRetry }) {
-  const messagesEndRef = useRef(null)
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-  
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-  const formatTime = (timestamp) => {
-    if (!timestamp) return ''
-    const date = new Date(timestamp)
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
+  const messagesEndRef = useAutoScroll(messages)
 
   if (loading) {
     return (
@@ -51,38 +38,11 @@ function GlobalChat({ messages, currentUser, loading, onRetry }) {
               </button>
             </div>
             
-            {messages.map((message, index) => {
-              
-              console.log(`Rendering message ${index}:`, {
-                sender: message.sender,
-                type: message.messageType,
-                content: message.content?.substring(0, 30) + '...'
-              })
-              
-              return (
-                <div key={index} className={`message-wrapper ${message.sender === currentUser ? 'own-message' : ''}`}>
-                  {(message.sender === 'System' || message.messageType === 'SYSTEM') ? (
-                    <div className="system-message">
-                      <div className="system-icon">ℹ️</div>
-                      <span>{message.content}</span>
-                    </div>
-                  ) : (
-                    <div className="message">
-                      <div className="message-avatar">
-                        {message.sender.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="message-content">
-                        <div className="message-header">
-                          <span className="message-author">{message.sender}</span>
-                          <span className="message-time">{formatTime(message.timestamp)}</span>
-                        </div>
-                        <div className="message-text">{message.content}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {messages.map((message, index) => (
+              <div key={index} className={`message-wrapper ${message.sender === currentUser ? 'own-message' : ''}`}>
+                <MessageItem message={message} currentUser={currentUser} />
+              </div>
+            ))}
             
             {/* Scroll anchor for auto-scroll */}
             <div ref={messagesEndRef} />

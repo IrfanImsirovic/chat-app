@@ -20,25 +20,19 @@ public class WebSocketEventListener {
 
     @EventListener
     public void handleWebSocketConnectListener(SessionConnectedEvent event) {
-        StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
-        String sessionId = headerAccessor.getSessionId();
         
-        System.out.println("New WebSocket connection established (Session: " + sessionId + ")");
     }
 
     @EventListener
     public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
-        String sessionId = headerAccessor.getSessionId();
         
         String username = (String) headerAccessor.getSessionAttributes().get("username");
         
         if (username != null) {
             userService.setUserOnline(username, false);
             userService.updateUserLastSeen(username);
-            System.out.println("User disconnected: " + username + " (Session: " + sessionId + ") - set offline");
-        } else {
-            System.out.println("User disconnected (Session: " + sessionId + ") - no username found");
+            chatService.sendOnlineUsersUpdate();
         }
     }
 }

@@ -67,15 +67,10 @@ public class UserService {
         }
     }
 
-    public User findOrCreateUser(String username) {
-        return findOrCreateUserWithStatus(username).getUser();
-    }
+
 
     public List<User> getOnlineUsers() {
-        List<User> onlineUsers = userRepository.findByOnlineTrue();
-        System.out.println("UserService: Found " + onlineUsers.size() + " online users:");
-        onlineUsers.forEach(user -> System.out.println("  - " + user.getUsername() + " (online: " + user.isOnline() + ")"));
-        return onlineUsers;
+        return userRepository.findByOnlineTrue();
     }
 
     public void updateUserLastSeen(String username) {
@@ -89,8 +84,7 @@ public class UserService {
         userRepository.findByUsername(username).ifPresent(user -> {
             user.setOnline(online);
             user.setLastSeen(LocalDateTime.now());
-            User savedUser = userRepository.save(user);
-            System.out.println("User " + username + " online status set to: " + savedUser.isOnline());
+            userRepository.save(user);
         });
     }
 
@@ -106,6 +100,5 @@ public class UserService {
                 userRepository.save(user);
             }
         });
-        System.out.println("UserService: Reset all users to offline status");
     }
 }

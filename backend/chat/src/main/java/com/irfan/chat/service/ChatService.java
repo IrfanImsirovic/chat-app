@@ -31,7 +31,7 @@ public class ChatService {
     }
 
     public void sendGlobalMessage(ChatMessage chatMessage) {
-        User user = userService.findOrCreateUser(chatMessage.getSender());
+        User user = userService.findOrCreateUserWithStatus(chatMessage.getSender()).getUser();
         chatMessage.setUser(user);
         chatMessage.setMessageType(ChatMessage.MessageType.GLOBAL);
         
@@ -42,24 +42,36 @@ public class ChatService {
     }
 
     public void sendPrivateMessage(ChatMessage chatMessage, String recipientUsername) {
-        User sender = userService.findOrCreateUser(chatMessage.getSender());
+        System.out.println("Sending private message from " + chatMessage.getSender() + " to " + recipientUsername);
+        System.out.println("Message content: " + chatMessage.getContent());
+        
+        User sender = userService.findOrCreateUserWithStatus(chatMessage.getSender()).getUser();
         chatMessage.setUser(sender);
         chatMessage.setRecipient(recipientUsername);
         chatMessage.setMessageType(ChatMessage.MessageType.PRIVATE);
         
-        messageRepository.save(chatMessage);
+        try {
+            ChatMessage savedMessage = messageRepository.save(chatMessage);
+            System.out.println("Private message saved to database with ID: " + savedMessage.getId());
+        } catch (Exception e) {
+            System.err.println("Error saving private message to database: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
         userService.updateUserLastSeen(chatMessage.getSender());
         
-        
-        System.out.println("Sending private message from " + chatMessage.getSender() + " to " + recipientUsername);
-        System.out.println("Message content: " + chatMessage.getContent());
-        
-        
-        messagingTemplate.convertAndSendToUser(recipientUsername, "/queue/private", chatMessage);
-        messagingTemplate.convertAndSendToUser(chatMessage.getSender(), "/queue/private", chatMessage);
-        
-        System.out.println("Private message sent to both users via WebSocket");
+        try {
+            messagingTemplate.convertAndSendToUser(recipientUsername, "/queue/private", chatMessage);
+            System.out.println("Private message sent to recipient: " + recipientUsername);
+            messagingTemplate.convertAndSendToUser(chatMessage.getSender(), "/queue/private", chatMessage);
+            System.out.println("Private message sent to sender: " + chatMessage.getSender());
+        } catch (Exception e) {
+            System.err.println("Error sending private message via WebSocket: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
+
+
 
     public void notifyUserJoined(String username) {
         ChatMessage notification = new ChatMessage();
@@ -68,130 +80,94 @@ public class ChatService {
         notification.setMessageType(ChatMessage.MessageType.SYSTEM);
         notification.setTimestamp(LocalDateTime.now());
         
-        
         messageRepository.save(notification);
-        
-        
         messagingTemplate.convertAndSend("/topic/global", notification);
         sendOnlineUsersUpdate();
-        
-        System.out.println("New user join notification sent and saved for: " + username);
     }
 
-    public void notifyPrivateChatStarted(String sender, String recipient) {
-        
-        ChatMessage senderNotification = new ChatMessage();
-        senderNotification.setContent("Private chat started with " + recipient);
-        senderNotification.setSender("System");
-        senderNotification.setRecipient(recipient);
-        senderNotification.setMessageType(ChatMessage.MessageType.PRIVATE);
-        senderNotification.setTimestamp(LocalDateTime.now());
-        
-        
-        ChatMessage recipientNotification = new ChatMessage();
-        recipientNotification.setContent(sender + " started a private chat with you");
-        recipientNotification.setSender("System");
-        recipientNotification.setRecipient(sender);
-        recipientNotification.setMessageType(ChatMessage.MessageType.PRIVATE);
-        recipientNotification.setTimestamp(LocalDateTime.now());
-        
-        
-        messagingTemplate.convertAndSendToUser(sender, "/queue/private", senderNotification);
-        messagingTemplate.convertAndSendToUser(recipient, "/queue/private", recipientNotification);
-        
-        
-        messageRepository.save(senderNotification);
-        messageRepository.save(recipientNotification);
-    }
+
 
     public void sendOnlineUsersUpdate() {
         List<User> onlineUsers = userService.getOnlineUsers();
         messagingTemplate.convertAndSend("/topic/online-users", onlineUsers);
     }
 
-    public List<ChatMessage> getAllGlobalMessages() {
+
+    
+
+    
+
+    
+
+    
+
+
+
+
+    private List<ChatMessage> getGlobalAndSystemMessages(PageRequest pageRequest) {
         try {
+            List<ChatMessage> globalMessages = pageRequest != null 
+                ? messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.GLOBAL, pageRequest)
+                : messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.GLOBAL);
             
-            List<ChatMessage> globalMessages = messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.GLOBAL);
-            List<ChatMessage> systemMessages = messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.SYSTEM);
-            
+            List<ChatMessage> systemMessages = pageRequest != null 
+                ? messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.SYSTEM, pageRequest)
+                : messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.SYSTEM);
             
             List<ChatMessage> allMessages = new ArrayList<>();
             allMessages.addAll(globalMessages);
             allMessages.addAll(systemMessages);
             
+            // Note: NOTIFICATION messages are excluded from global messages
+            // They are only shown in private conversations
             
             allMessages.sort((a, b) -> a.getTimestamp().compareTo(b.getTimestamp()));
             
-            
-            System.out.println("Retrieved " + allMessages.size() + " total messages (global: " + globalMessages.size() + ", system: " + systemMessages.size() + ")");
-            
             return allMessages;
         } catch (Exception e) {
-            System.err.println("Error retrieving global messages: " + e.getMessage());
-            e.printStackTrace();
             return new ArrayList<>(); 
         }
     }
 
+    public List<ChatMessage> getAllGlobalMessages() {
+        return getGlobalAndSystemMessages(null);
+    }
+
     public List<ChatMessage> getRecentGlobalMessages(int limit) {
-        try {
-            
-            List<ChatMessage> globalMessages = messageRepository
-                    .findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.GLOBAL, PageRequest.of(0, limit));
-            List<ChatMessage> systemMessages = messageRepository
-                    .findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.SYSTEM, PageRequest.of(0, limit));
-            
-            
-            List<ChatMessage> allMessages = new ArrayList<>();
-            allMessages.addAll(globalMessages);
-            allMessages.addAll(systemMessages);
-            
-            
-            allMessages.sort((a, b) -> a.getTimestamp().compareTo(b.getTimestamp()));
-            if (allMessages.size() > limit) {
-                allMessages = allMessages.subList(allMessages.size() - limit, allMessages.size());
-            }
-            
-            return allMessages;
-        } catch (Exception e) {
-            System.err.println("Error retrieving recent global messages: " + e.getMessage());
-            e.printStackTrace();
-            return new ArrayList<>(); 
+        List<ChatMessage> messages = getGlobalAndSystemMessages(PageRequest.of(0, limit));
+        if (messages.size() > limit) {
+            messages = messages.subList(messages.size() - limit, messages.size());
         }
+        return messages;
     }
 
     public List<ChatMessage> getPrivateMessages(String user1, String user2) {
         try {
-            return messageRepository.findPrivateMessages(user1, user2);
+            System.out.println("Fetching private messages between: " + user1 + " and " + user2);
+            List<ChatMessage> messages = messageRepository.findPrivateMessages(user1, user2);
+            System.out.println("Found " + messages.size() + " private messages");
+            return messages;
         } catch (Exception e) {
-            System.err.println("Error retrieving private messages: " + e.getMessage());
+            System.err.println("Error fetching private messages between " + user1 + " and " + user2 + ": " + e.getMessage());
             e.printStackTrace();
             return new ArrayList<>(); 
         }
     }
 
-   
+
+
     public boolean verifyMessagePersistence() {
         try {
             List<ChatMessage> globalMessages = messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.GLOBAL);
             List<ChatMessage> systemMessages = messageRepository.findByMessageTypeOrderByTimestampAsc(ChatMessage.MessageType.SYSTEM);
             List<User> onlineUsers = userService.getOnlineUsers();
             
-            
             boolean hasMessagesFromInactiveUsers = globalMessages.stream()
                 .anyMatch(message -> !message.getSender().equals("System") && 
                     onlineUsers.stream().noneMatch(user -> user.getUsername().equals(message.getSender())));
             
-            System.out.println("Message persistence verification:");
-            System.out.println("- Total global messages: " + globalMessages.size());
-            System.out.println("- Total system messages: " + systemMessages.size());
-            System.out.println("- Online users: " + onlineUsers.size());
-            System.out.println("- Has messages from inactive users: " + hasMessagesFromInactiveUsers);
-            
             return true;
         } catch (Exception e) {
-            System.err.println("Error verifying message persistence: " + e.getMessage());
             return false;
         }
     }

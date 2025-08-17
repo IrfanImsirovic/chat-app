@@ -36,8 +36,13 @@ public class ChatMessage {
     @JoinColumn(name = "user_id")
     private User user;
     
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "private_chat_id")
+    private PrivateChat privateChat;
+    
     public enum MessageType {
-        GLOBAL, PRIVATE, SYSTEM
+        GLOBAL, PRIVATE, SYSTEM, NOTIFICATION
     }
     
     public ChatMessage(String content, String sender) {

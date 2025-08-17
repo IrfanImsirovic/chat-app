@@ -1,31 +1,12 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
+import { MessageItem, useAutoScroll } from './MessageUtils'
 
 function DirectChat({ peer, messages, currentUser, message, setMessage, onSendPrivate }) {
-  const messagesEndRef = useRef(null)
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-  
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-  const formatTime = (timestamp) => {
-    if (!timestamp) return ''
-    const date = new Date(timestamp)
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-
-  
-  console.log(`DirectChat render for ${peer}:`, {
-    messagesCount: messages?.length || 0,
-    messages: messages,
-    currentUser: currentUser
-  })
+  const messagesEndRef = useAutoScroll(messages)
 
   return (
     <div className="direct-chat">
+      
       <div className="messages-container">
         {(!messages || messages.length === 0) ? (
           <div className="welcome-message">
@@ -40,39 +21,11 @@ function DirectChat({ peer, messages, currentUser, message, setMessage, onSendPr
               <span className="message-count">{messages.length} messages</span>
             </div>
             
-            {messages.map((msg, idx) => {
-              
-              console.log(` Rendering private message ${idx}:`, {
-                sender: msg.sender,
-                type: msg.messageType,
-                content: msg.content?.substring(0, 30) + '...',
-                timestamp: msg.timestamp
-              })
-              
-              return (
-                <div key={`${msg.sender}-${msg.timestamp}-${idx}`} className={`message-wrapper ${msg.sender === currentUser ? 'own-message' : ''}`}>
-                  {(msg.sender === 'System' || msg.messageType === 'SYSTEM') ? (
-                    <div className="system-message">
-                      <div className="system-icon">ℹ️</div>
-                      <span>{msg.content}</span>
-                    </div>
-                  ) : (
-                    <div className="message">
-                      <div className="message-avatar">
-                        {msg.sender.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="message-content">
-                        <div className="message-header">
-                          <span className="message-author">{msg.sender}</span>
-                          <span className="message-time">{formatTime(msg.timestamp)}</span>
-                        </div>
-                        <div className="message-text">{msg.content}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {messages.map((msg, idx) => (
+              <div key={`${msg.sender}-${msg.timestamp}-${idx}`} className={`message-wrapper ${msg.sender === currentUser ? 'own-message' : ''}`}>
+                <MessageItem message={msg} currentUser={currentUser} />
+              </div>
+            ))}
             
             {/* Scroll anchor for auto-scroll */}
             <div ref={messagesEndRef} />

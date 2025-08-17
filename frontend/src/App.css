@@ -344,12 +344,10 @@ body {
 
 .chat-content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 1rem;
+  overflow: hidden;
   width: 100%;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
 }
 
 
@@ -361,6 +359,8 @@ body {
   background: var(--bg-primary);
   width: 100%;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .global-chat .messages-container,
@@ -512,6 +512,8 @@ body {
 .system-icon {
   font-size: 1rem;
 }
+
+
 
 .welcome-message {
   text-align: center;
@@ -1251,3 +1253,18 @@ body {
     padding: 0.5rem 0.75rem;
   }
 }
+
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+
+
+
+
+
+
+

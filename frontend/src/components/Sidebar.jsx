@@ -3,10 +3,6 @@ import React from 'react'
 function Sidebar({ users, currentUser, activeDM, onSelectUser, loading, isOpen, onClose }) {
   const otherUsers = users.filter(user => user.username !== currentUser)
   
-  // Debug logging
-  console.log('Sidebar props:', { users, currentUser, activeDM, loading })
-  console.log('otherUsers filtered:', otherUsers)
-  
   return (
     <>
       {/* Backdrop for mobile */}
