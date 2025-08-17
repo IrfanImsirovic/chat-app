@@ -93,17 +93,6 @@ public class ChatService {
     }
 
 
-    
-
-    
-
-    
-
-    
-
-
-
-
     private List<ChatMessage> getGlobalAndSystemMessages(PageRequest pageRequest) {
         try {
             List<ChatMessage> globalMessages = pageRequest != null 
